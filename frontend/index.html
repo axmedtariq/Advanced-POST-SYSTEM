@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>MXC Trading Dashboard</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+<nav class="navbar navbar-expand-lg navbar-light bg-light">
+  <div class="container-fluid">
+    <a class="navbar-brand" href="#">MXC Trading</a>
+    <div class="d-flex">
+      <button id="adminPanelBtn" class="btn btn-outline-primary me-2">Admin Panel</button>
+      <button id="logoutBtn" class="btn btn-outline-danger">Logout</button>
+    </div>
+  </div>
+</nav>
+
+<div class="container mt-4">
+  <h3>Products</h3>
+  <table class="table table-bordered">
+    <thead>
+      <tr><th>ID</th><th>Name</th><th>Price</th><th>Stock</th><th>Action</th></tr>
+    </thead>
+    <tbody id="product-list"></tbody>
+  </table>
+
+  <h3>Cart</h3>
+  <ul class="list-group mb-2" id="cart-list"></ul>
+  <h5>Total: $<span id="total">0.00</span></h5>
+  <button id="checkoutBtn" class="btn btn-success mt-2">Checkout</button>
+
+  <h3 class="mt-4">Recent Sales</h3>
+  <ul class="list-group" id="sales-list"></ul>
+</div>
+
+<!-- Admin Modal -->
+<div class="modal fade" id="adminModal" tabindex="-1">
+  <div class="modal-dialog modal-xl">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Admin Panel</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+
+        <!-- Add Product -->
+        <h5>Add Product</h5>
+        <div class="row mb-3">
+          <div class="col"><input id="newName" class="form-control" placeholder="Name"></div>
+          <div class="col"><input id="newPrice" class="form-control" placeholder="Price"></div>
+          <div class="col"><input id="newStock" class="form-control" placeholder="Stock"></div>
+          <div class="col"><button id="addProductBtn" class="btn btn-primary">Add</button></div>
+        </div>
+
+        <!-- Admin Products -->
+        <h5>All Products</h5>
+        <table class="table table-bordered">
+          <thead>
+            <tr><th>ID</th><th>Name</th><th>Price</th><th>Stock</th><th>Actions</th></tr>
+          </thead>
+          <tbody id="admin-product-list"></tbody>
+        </table>
+
+        <!-- Sales Report Controls -->
+        <h5 class="mt-4">Sales Report</h5>
+        <div class="mb-3">
+          <button class="btn btn-outline-primary me-2" onclick="generateReport('daily')">Daily</button>
+          <button class="btn btn-outline-primary me-2" onclick="generateReport('weekly')">Weekly</button>
+          <button class="btn btn-outline-primary me-2" onclick="generateReport('monthly')">Monthly</button>
+          <button class="btn btn-outline-primary me-2" onclick="generateReport('yearly')">Yearly</button>
+          <button class="btn btn-success ms-3" id="exportPdfBtn">Export PDF</button>
+        </div>
+
+        <!-- Sales Report Table -->
+        <table class="table table-bordered" id="report-table">
+          <thead>
+            <tr>
+              <th>Product</th>
+              <th>Qty</th>
+              <th>Price</th>
+              <th>Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td colspan="4" class="text-muted">No data</td></tr>
+          </tbody>
+        </table>
+
+        <!-- Report Summary -->
+        <div id="report-summary" class="mt-3"></div>
+
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Customer Info Modal -->
+<div class="modal fade" id="customerModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Customer Information</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label>Name</label>
+          <input id="custName" class="form-control" placeholder="Customer Name">
+        </div>
+        <div class="mb-3">
+          <label>Address</label>
+          <input id="custAddress" class="form-control" placeholder="Customer Address">
+        </div>
+        <div class="mb-3">
+          <label>Phone</label>
+          <input id="custPhone" class="form-control" placeholder="Customer Phone">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" id="confirmCheckout">Confirm Checkout</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Bootstrap + html2pdf + Main.js -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>

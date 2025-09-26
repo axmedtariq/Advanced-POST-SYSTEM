@@ -1,0 +1,44 @@
+CREATE DATABASE IF NOT EXISTS pos_db;
+USE pos_db;
+
+
+CREATE TABLE IF NOT EXISTS products (
+id INT AUTO_INCREMENT PRIMARY KEY,
+name VARCHAR(200) NOT NULL,
+price DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+stock INT NOT NULL DEFAULT 0
+);
+
+
+CREATE TABLE IF NOT EXISTS sales (
+id INT AUTO_INCREMENT PRIMARY KEY,
+total DECIMAL(10,2) NOT NULL,
+created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+
+CREATE TABLE IF NOT EXISTS sale_items (
+id INT AUTO_INCREMENT PRIMARY KEY,
+sale_id INT NOT NULL,
+product_id INT NOT NULL,
+qty INT NOT NULL,
+price DECIMAL(10,2) NOT NULL,
+FOREIGN KEY (sale_id) REFERENCES sales(id),
+FOREIGN KEY (product_id) REFERENCES products(id)
+);
+
+
+CREATE TABLE IF NOT EXISTS users (
+id INT AUTO_INCREMENT PRIMARY KEY,
+username VARCHAR(100) UNIQUE NOT NULL,
+password_hash VARCHAR(255) NOT NULL,
+role ENUM('admin','cashier') NOT NULL DEFAULT 'cashier',
+created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+
+-- Example users
+INSERT INTO users (username, password_hash, role)
+VALUES
+('admin', '$2b$10$H6CzwJhR7RyH1xQ0rAqF7ONj1nUvf8H1Vq7FQ/O6i3aTZkYvUL1aS', 'admin'),
+('cashier1', '$2b$10$z7oi1e0sNHDGivbUqQHnNuyj6UPOvBvQe/Az7NYCrK1nhtdRV.Uxq', 'cashier');
