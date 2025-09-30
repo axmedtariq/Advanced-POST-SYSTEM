@@ -6,8 +6,55 @@ let cart = [];
 let salesData = [];
 
 // ---------------- Helpers ----------------
-function fmtCurrency(v){ return `$${Number(v||0).toFixed(2)}`; }
 function el(id){ return document.getElementById(id); }
+function fmtCurrency(v){ return `$${Number(v||0).toFixed(2)}`; }
+
+// ---------------- Export PDF with Title ----------------
+el('exportPdfBtn')?.addEventListener('click', () => {
+  const reportTable = el('report-table');
+  const summaryText = el('report-summary').innerText;
+  const reportTitle = reportTable?.getAttribute('data-report-title') || 'Sales Report';
+  const currentDate = new Date().toLocaleDateString();
+
+  // Temporary container for PDF content
+  const tempDiv = document.createElement('div');
+
+  // Add title
+  const titleEl = document.createElement('h3');
+  titleEl.innerText = `${reportTitle} – ${currentDate}`;
+  titleEl.style.textAlign = 'center';
+  titleEl.style.marginBottom = '10px';
+  tempDiv.appendChild(titleEl);
+
+  // Add cloned table
+  tempDiv.appendChild(reportTable.cloneNode(true));
+
+  // Add summary
+  if(summaryText){
+    const summaryEl = document.createElement('p');
+    summaryEl.style.fontWeight = 'bold';
+    summaryEl.style.marginTop = '10px';
+    summaryEl.innerText = summaryText;
+    tempDiv.appendChild(summaryEl);
+  }
+
+  html2pdf()
+    .set({
+      margin: 10,
+      filename: `${reportTitle.replace(/\s/g,'_')}_${currentDate}.pdf`,
+      html2canvas: { scale: 2 },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    })
+    .from(tempDiv)
+    .save();
+});
+
+// ---------------- Logout ----------------
+el('logoutBtn')?.addEventListener('click', () => {
+  localStorage.removeItem('token');
+  localStorage.removeItem('user');
+  window.location.href = 'login.html';
+});
 
 // ---------------- Products (Customer) ----------------
 async function fetchProducts(){
@@ -51,33 +98,36 @@ function renderCart(){
 }
 
 // ---------------- Customer Checkout ----------------
-el('checkoutBtn')?.addEventListener('click',()=>{
+el('checkoutBtn')?.addEventListener('click',()=> {
   if(!cart.length) return alert('Cart empty');
-  const modalEl=el('customerModal'); if(!modalEl) return alert('Customer modal not found');
+  const modalEl = el('customerModal');
+  if(!modalEl) return alert('Customer modal not found');
   new bootstrap.Modal(modalEl).show();
 });
 
-el('confirmCheckout')?.addEventListener('click', async ()=>{
-  const customer={ 
-    name:el('custName')?.value.trim(), 
-    address:el('custAddress')?.value.trim(), 
-    phone:el('custPhone')?.value.trim() 
+el('confirmCheckout')?.addEventListener('click', async ()=> {
+  const customer={
+    name: el('custName')?.value.trim(),
+    address: el('custAddress')?.value.trim(),
+    phone: el('custPhone')?.value.trim()
   };
   if(!customer.name||!customer.address||!customer.phone) return alert('Enter all customer details');
   if(!cart.length) return alert('Cart empty');
 
   try{
-    const res=await fetch(`${API_BASE}/checkout`,{
+    const res = await fetch(`${API_BASE}/checkout`, {
       method:'POST',
-      headers:{ 'Authorization':token?`Bearer ${token}`:'', 'Content-Type':'application/json' },
-      body:JSON.stringify({ items:cart, customer })
+      headers:{ 'Authorization': token?`Bearer ${token}`:'', 'Content-Type':'application/json' },
+      body: JSON.stringify({ items: cart, customer })
     });
-    const data=await res.json();
+    const data = await res.json();
     if(res.ok && data.ok){
-      printReceipt(data.sale_id ?? data.id ?? Math.floor(Math.random()*10000), customer, [...cart]);
+      printReceipt(data.sale_id ?? Math.floor(Math.random()*10000), customer, [...cart]);
       cart=[]; renderCart(); fetchProducts(); await fetchSales(); generateReport('daily');
       bootstrap.Modal.getInstance(el('customerModal'))?.hide();
-    }else{ alert(data.error || 'Checkout failed.'); }
+    } else {
+      alert(data.error || 'Checkout failed.');
+    }
   }catch(err){ console.error(err); alert('Error during checkout'); }
 });
 
@@ -117,17 +167,17 @@ function printReceipt(sale_id, customer, items){
 }
 
 // ---------------- Admin Panel ----------------
-el('adminPanelBtn')?.addEventListener('click',()=>{
+el('adminPanelBtn')?.addEventListener('click',()=> {
   if(user.role!=='admin') return alert('Admin access only');
-  fetchAdminProducts(); fetchSales();
+  fetchAdminProducts(); fetchSales(); generateReport('daily');
   new bootstrap.Modal(el('adminModal')).show();
 });
 
 // ---------------- Admin CRUD ----------------
 async function fetchAdminProducts(){
   try{
-    const res=await fetch(`${API_BASE}/products`, { headers: token?{'Authorization':`Bearer ${token}`}:{} });
-    const products=await res.json(); const tbody=el('admin-product-list'); if(!tbody) return;
+    const res = await fetch(`${API_BASE}/products`, { headers: token?{'Authorization':`Bearer ${token}`}:{} });
+    const products = await res.json(); const tbody = el('admin-product-list'); if(!tbody) return;
     tbody.innerHTML='';
     (products||[]).forEach(p=>{
       const tr=document.createElement('tr'); tr.innerHTML=`<td>${p.id}</td>`;
@@ -148,16 +198,26 @@ async function fetchAdminProducts(){
   }catch(err){ console.error(err); }
 }
 
+el('addProductBtn')?.addEventListener('click', addProduct);
+
 async function addProduct(){
   const name=el('newName')?.value.trim();
   const price=parseFloat(el('newPrice')?.value);
   const stock=parseInt(el('newStock')?.value);
-  if(!name || isNaN(price)||isNaN(stock)) return alert('Invalid input');
+  if(!name||isNaN(price)||isNaN(stock)) return alert('Invalid input');
+
   try{
-    await fetch(`${API_BASE}/products`,{ method:'POST', headers:{ 'Authorization':token?`Bearer ${token}`:'','Content-Type':'application/json' }, body:JSON.stringify({name,price,stock}) });
-    el('newName').value=''; el('newPrice').value=''; el('newStock').value='';
-    fetchAdminProducts(); fetchProducts();
-  }catch(err){ console.error(err); alert('Add failed'); }
+    const res = await fetch(`${API_BASE}/products`,{
+      method:'POST',
+      headers:{ 'Authorization': token?`Bearer ${token}`:'','Content-Type':'application/json' },
+      body: JSON.stringify({name,price,stock})
+    });
+    const data = await res.json();
+    if(data.ok){
+      el('newName').value=''; el('newPrice').value=''; el('newStock').value='';
+      fetchAdminProducts(); fetchProducts();
+    } else { alert(data.error || 'Add failed'); }
+  }catch(err){ console.error(err); alert('Error adding product'); }
 }
 
 async function updateProduct(id){
@@ -165,125 +225,90 @@ async function updateProduct(id){
   const price=parseFloat(el(`price${id}`)?.value);
   const stock=parseInt(el(`stock${id}`)?.value);
   try{
-    await fetch(`${API_BASE}/products/${id}`,{ method:'PUT', headers:{ 'Authorization':token?`Bearer ${token}`:'','Content-Type':'application/json' }, body:JSON.stringify({name,price,stock}) });
-    fetchAdminProducts(); fetchProducts();
-  }catch(err){ console.error(err); alert('Update failed'); }
+    const res = await fetch(`${API_BASE}/products/${id}`,{
+      method:'PUT',
+      headers:{ 'Authorization': token?`Bearer ${token}`:'','Content-Type':'application/json' },
+      body: JSON.stringify({name,price,stock})
+    });
+    const data=await res.json();
+    if(data.ok) fetchAdminProducts();
+    else alert(data.error || 'Update failed');
+  }catch(err){ console.error(err); alert('Error updating product'); }
 }
 
 async function deleteProduct(id){
   if(!confirm('Delete product?')) return;
   try{
-    await fetch(`${API_BASE}/products/${id}`,{ method:'DELETE', headers:{ 'Authorization':token?`Bearer ${token}`:'' } });
-    fetchAdminProducts(); fetchProducts();
-  }catch(err){ console.error(err); alert('Delete failed'); }
+    const res = await fetch(`${API_BASE}/products/${id}`,{
+      method:'DELETE',
+      headers:{ 'Authorization': token?`Bearer ${token}`:'' }
+    });
+    const data = await res.json();
+    if(data.ok) fetchAdminProducts(); else alert(data.error||'Delete failed');
+  }catch(err){ console.error(err); alert('Error deleting product'); }
 }
 
-// ---------------- Fetch & Render Sales ----------------
+// ---------------- Sales Reports ----------------
 async function fetchSales(){
   try{
-    const res = await fetch(`${API_BASE}/sales`, { headers: token?{'Authorization':`Bearer ${token}`}:{}} );
-    const sales = await res.json();
-    salesData = Array.isArray(sales) ? sales : [];
-    renderSalesList();
-  }catch(err){ console.error(err); }
+    const res = await fetch(`${API_BASE}/sales`,{ headers: token?{'Authorization':`Bearer ${token}`}:{} });
+    salesData = await res.json();
+  }catch(err){ console.error(err); salesData=[]; }
 }
 
-function renderSalesList(){
-  const list=el('sales-list'); if(!list) return;
-  list.innerHTML='';
-  salesData.forEach(s=>{
-    const items=s.items || [];
-    const itemLine=items.map(i=>`${i.name} x${i.qty}`).join(', ');
-    const li=document.createElement('li');
-    li.className='list-group-item';
-    li.innerHTML=`Sale #${s.id} - ${fmtCurrency(s.total||0)} - ${s.created_at?new Date(s.created_at).toLocaleString():'N/A'}<br>
-                  Customer: ${s.customer_name||'N/A'}, ${s.customer_address||''}, ${s.customer_phone||''}<br>
-                  Items: ${itemLine}`;
-    list.appendChild(li);
-  });
-}
+function generateReport(type='daily'){
+  const table = el('report-table'); 
+  const tbody = table?.querySelector('tbody');
+  if(!tbody) return;
+  tbody.innerHTML='';
 
-// ---------------- Generate Admin Report ----------------
-function generateReport(period){
-  if(!salesData.length){ 
-    clearReportDisplays(); 
-    return; 
-  }
+  // Set report title for export
+  const titleMap = { daily:'Daily Sales Report', weekly:'Weekly Sales Report', monthly:'Monthly Sales Report', yearly:'Yearly Sales Report' };
+  table.setAttribute('data-report-title', titleMap[type]||'Sales Report');
 
+  // Filter sales by type
   const now = new Date();
-  let filtered = salesData.filter(s => {
-    const date = new Date(s.created_at);
-    if(period==='daily') return date.toDateString()===now.toDateString();
-    if(period==='weekly'){ 
-      const weekStart = new Date(now); weekStart.setDate(now.getDate()-now.getDay()); weekStart.setHours(0,0,0,0); 
-      return date >= weekStart; 
+  const data = (salesData||[]).filter(sale=>{
+    const saleDate = new Date(sale.created_at);
+    switch(type){
+      case 'daily': return saleDate.toDateString() === now.toDateString();
+      case 'weekly': {
+        const oneWeekAgo = new Date(); oneWeekAgo.setDate(now.getDate()-7);
+        return saleDate >= oneWeekAgo;
+      }
+      case 'monthly': return saleDate.getMonth() === now.getMonth() && saleDate.getFullYear() === now.getFullYear();
+      case 'yearly': return saleDate.getFullYear() === now.getFullYear();
+      default: return true;
     }
-    if(period==='monthly') return date.getMonth()===now.getMonth() && date.getFullYear()===now.getFullYear();
-    if(period==='yearly') return date.getFullYear()===now.getFullYear();
-    return true;
   });
 
-  // Aggregate sales by product
-  const productTotals = {};
-  filtered.forEach(s=>{
-    const items = s.items || [];
-    items.forEach(i=>{
-      if(!productTotals[i.name]) productTotals[i.name] = { price: i.price, qty: 0, total: 0 };
-      productTotals[i.name].qty += i.qty;
-      productTotals[i.name].total += i.qty*i.price;
+  let totalQty = 0, totalAmount = 0;
+
+  data.forEach(sale=>{
+    (sale.items||[]).forEach(item=>{
+      const tr = document.createElement('tr');
+      const itemTotal = item.qty*item.price;
+      totalQty += item.qty;
+      totalAmount += itemTotal;
+      tr.innerHTML = `<td>${item.name}</td><td>${item.qty}</td><td>${fmtCurrency(item.price)}</td><td>${fmtCurrency(itemTotal)}</td>`;
+      tbody.appendChild(tr);
     });
   });
 
-  // Render table
-  const tbody=document.querySelector('#report-table tbody');
-  tbody.innerHTML='';
-  let grandTotal=0;
-  Object.entries(productTotals).forEach(([name,data])=>{
-    const tr=document.createElement('tr');
-    tr.innerHTML=`<td>${name}</td><td>${data.qty}</td><td>${fmtCurrency(data.price)}</td><td>${fmtCurrency(data.total)}</td>`;
-    grandTotal += data.total;
+  if(!data.length){
+    const tr = document.createElement('tr');
+    tr.innerHTML=`<td colspan="4" class="text-muted">No data</td>`;
     tbody.appendChild(tr);
-  });
+  }
 
-  const trTotal=document.createElement('tr');
-  trTotal.innerHTML=`<td colspan="3"><strong>Grand Total</strong></td><td><strong>${fmtCurrency(grandTotal)}</strong></td>`;
-  tbody.appendChild(trTotal);
-
-  // Render summary
-  const bestSeller = Object.entries(productTotals).sort((a,b)=>b[1].qty - a[1].qty)[0]?.[0] || '—';
-  const salesCount = filtered.length;
-  const avgSale = salesCount ? grandTotal/salesCount : 0;
-
-  renderReportSummary({ totalRevenue: grandTotal, salesCount, avgSale, bestSeller });
+  // Update summary
+  const summary = el('report-summary');
+  if(summary) summary.innerText = `Total Qty: ${totalQty}, Total Amount: ${fmtCurrency(totalAmount)}`;
 }
-
-// ---------------- Report Summary ----------------
-function clearReportDisplays(){ 
-  const elSummary = el('report-summary'); if(elSummary) elSummary.innerHTML='';
-  const tbody = document.querySelector('#report-table tbody');
-  if(tbody) tbody.innerHTML='<tr><td colspan="4" class="text-muted">No data</td></tr>';
-}
-
-function renderReportSummary({totalRevenue,salesCount,avgSale,bestSeller}){
-  const elSummary = el('report-summary'); if(!elSummary) return;
-  elSummary.innerHTML = `
-    <div><strong>Total revenue:</strong> ${fmtCurrency(totalRevenue)}</div>
-    <div><strong>Number of sales:</strong> ${salesCount}</div>
-    <div><strong>Average sale value:</strong> ${fmtCurrency(avgSale)}</div>
-    <div><strong>Best seller:</strong> ${bestSeller}</div>
-  `;
-}
-
-// ---------------- Export PDF ----------------
-function exportReportPDF(){
-  const table=el('report-table'); 
-  if(!table) return alert('No table to export');
-  if(!window.html2pdf){ alert('html2pdf.js not loaded'); return; }
-  html2pdf().from(table).set({ margin:1, filename:'report.pdf', html2canvas:{ scale:2 } }).save();
-}
-
-el('exportPdfBtn')?.addEventListener('click',exportReportPDF);
 
 // ---------------- Initialize ----------------
-fetchProducts();
-if(user.role==='admin'){ fetchAdminProducts(); fetchSales(); generateReport('daily'); }
+if(token){
+  fetchProducts();
+} else {
+  window.location.href='login.html';
+}
